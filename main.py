@@ -62,7 +62,7 @@ class Population:
 			will_it_mutate = random.randint(0, 100)
 			if will_it_mutate >= MUTATION_PERCENTAGE*100:
 				continue
-			#generate the chromosomes to be fully mutated
+			#generate the action indexes to be fully mutated
 			mutation_indexes = random.sample(range(N_ACTIONS), N_MUTATIONS)
 			for m in mutation_indexes:
 				chromosome.actions[m] = env.action_space.sample()
@@ -107,14 +107,14 @@ class Chromosome:
 		new_chromosome = Chromosome(new_actions, N_ACTIONS)
 		return new_chromosome
 	def imprime(self):
-		print('Fitness value: ', self.fitness_value)
+		print('Fitness value: ', self.fitness_value, ' Probability of being selected: %.15f' % self.selection_probability)
 
 N_GENERATIONS = 100
 N_CHROMOSOMES = 100 #Even number
 N_ACTIONS = 20 #Has to be a number multiple of 4
 MUTATION_PERCENTAGE = 0.5 #Chance of a chromosome to mutate
 N_MUTATIONS = 4 #Number of mutations inside a chromosome - Has to be a value lower than N_ACTIONS
-ELITISM_PERCENTAGE = 0.40 #Result of the multiplication of this value and N_CHROMOSOMES has to be even
+ELITISM_PERCENTAGE = 0.20 #Result of the multiplication of this value and N_CHROMOSOMES has to be even
 env = gym.make('BipedalWalker-v2')
 population = Population()
 env.reset()
@@ -144,6 +144,10 @@ for generation_counter in range(N_GENERATIONS):
 	population.chromosomes[0].imprime()
 	population.chromosomes[1].imprime()
 	population.chromosomes[2].imprime()
+	print('Imprimindo os três piores')
+	population.chromosomes[-1].imprime()
+	population.chromosomes[-2].imprime()
+	population.chromosomes[-3].imprime()
 	#Elitism
 	elite = population.elitism(ELITISM_PERCENTAGE, N_CHROMOSOMES)
 	#Crossover
