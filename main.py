@@ -6,6 +6,7 @@ import itertools
 import heapq
 import time
 from operator import attrgetter
+import matplotlib.pyplot as plt
 
 class Population:
 	def __init__(self):
@@ -47,33 +48,11 @@ class Population:
 				selected_chromosome_2 = i
 				break
 		return selected_chromosome_1, selected_chromosome_2
-	def sample_chromosome_pairs_2(self, elite):
-		#Create a list of additive probabilities in order to facilitate
-		#the selection of the pair
-		additive_probabilities = []
-		partial_sum = 0
-		for i in range(len(elite)):
-			partial_sum += self.chromosomes[i].selection_probability
-			additive_probabilities.append(partial_sum)
-		random_number_1 = random.uniform(0.0, 1.0)
-		random_number_2 = random.uniform(0.0, 1.0)
-		selected_chromosome_1 = -1
-		selected_chromosome_2 = -1
-		#Iterate through the lists to get the chromosomes
-		for i in range(len(additive_probabilities)):
-			if random_number_1 <= additive_probabilities[i]:
-				selected_chromosome_1 = i
-				break
-		for i in range(len(additive_probabilities)):
-			if random_number_2 <= additive_probabilities[i]:
-				selected_chromosome_2 = i
-				break
-		return selected_chromosome_1, selected_chromosome_2
-	def playout(self, N_CHROMOSOMES, N_ACTIONS, env):
+	def playout(self, N_CHROMOSOMES, N_ACTIONS, N_PLAYOUT, env):
 		for i in range(N_CHROMOSOMES):
 			env.reset()
 			sum_rewards = 0
-			for _ in range(500//N_ACTIONS):
+			for _ in range(N_PLAYOUT // N_ACTIONS):
 				for j in range(N_ACTIONS):
 					action = self.chromosomes[i].actions[j]
 					_, reward, _, _ = env.step(action)
@@ -88,15 +67,15 @@ class Population:
 			mutation_indexes = random.sample(range(N_ACTIONS), N_MUTATIONS)
 			for m in mutation_indexes:
 				chromosome.actions[m] = env.action_space.sample()
-
-	def crossover(self, N_ACTIONS, elite):
+	#This crossover involves all chromosomes (each one has a chance to be selected)		
+	def crossover_1(self, N_ACTIONS, elite):
 		new_population = []
 		new_population.extend(elite)
 		#Ignoring the elite, iterate until the end of the chromosomes
 		
 		for i in range(len(elite), len(self.chromosomes), 2):
 			#Selection stage - Select two chromosomes for crossover (elite CAN be selected)
-			#index_1, index_2 = self.sample_chromosome_pairs()
+			index_1, index_2 = self.sample_chromosome_pairs()
 			#Crossover
 			new_chromosome_1 = self.chromosomes[index_1].crossover_between_chromosomes(self.chromosomes[index_2], N_ACTIONS)
 			new_chromosome_2 = self.chromosomes[index_2].crossover_between_chromosomes(self.chromosomes[index_1], N_ACTIONS)
@@ -104,6 +83,7 @@ class Population:
 			new_population.append(new_chromosome_1)
 			new_population.append(new_chromosome_2)
 		self.chromosomes = copy.deepcopy(new_population)
+
 	def crossover_2(self, N_ACTIONS, elite):
 		new_population = []
 		new_population.extend(elite)
@@ -111,11 +91,9 @@ class Population:
 		random_indexes = list(range(len(elite)))
 		random.shuffle(random_indexes)
 		for i in range(0, len(elite), 2):
-			#Selection stage - Select two chromosomes for crossover (elite CAN be selected)
-			#index_1, index_2 = self.sample_chromosome_pairs_2(elite)
+			#Selection stage - Select two chromosomes from the elite ONLY
 			index_1 = random_indexes[i]
 			index_2 = random_indexes[i+1]
-			#print(index_1, index_2)
 			#Crossover
 			new_chromosome_1 = self.chromosomes[index_1].crossover_between_chromosomes(self.chromosomes[index_2], N_ACTIONS)
 			new_chromosome_2 = self.chromosomes[index_2].crossover_between_chromosomes(self.chromosomes[index_1], N_ACTIONS)
@@ -149,16 +127,22 @@ class Chromosome:
 		new_chromosome = Chromosome(new_actions, N_ACTIONS)
 		return new_chromosome
 	def imprime(self):
-		print('Fitness value: ', self.fitness_value, ' Probability of being selected: %.15f' % self.selection_probability)
+		print('Fitness value: ', self.fitness_value)
 
 N_GENERATIONS = 100
 N_CHROMOSOMES = 100 #Even number
-N_ACTIONS = 40 #Has to be a number multiple of 4
+N_ACTIONS = 40  #Has to be a number multiple of 4 (Because of the mutation - 0.75)
+N_PLAYOUT = 500 #Number of times a chromosome will be played
 MUTATION_PERCENTAGE = 0.50 #Chance of a chromosome to mutate
 N_MUTATIONS = 1 #Number of mutations inside a chromosome - Has to be a value lower than N_ACTIONS
 ELITISM_PERCENTAGE = 0.50 #Result of the multiplication of this value and N_CHROMOSOMES has to be even
+
 env = gym.make('BipedalWalker-v2')
 population = Population()
+
+x_axis =  list(range(1,N_GENERATIONS+1))
+y_axis = []
+
 env.reset()
 #Initial population is initialized randomly
 for i in range(N_CHROMOSOMES):
@@ -172,27 +156,45 @@ for i in range(N_CHROMOSOMES):
 		sum_rewards += reward
 	chromosome.calculate_fitness_value(sum_rewards)
 	population.chromosomes.append(chromosome)
-population.calculate_selection_probability()
 env.reset()
 
 #Main loop
 for generation_counter in range(N_GENERATIONS):
-	print('Geração', generation_counter+1)
+	print('Generation', generation_counter+1)
 	generation_counter += 1
-	population.playout(N_CHROMOSOMES, N_ACTIONS, env)
-	population.calculate_selection_probability()
+	population.playout(N_CHROMOSOMES, N_ACTIONS, N_PLAYOUT, env)
+	population.calculate_selection_probability() #Needed for crossover_1
 	population.chromosomes.sort(key=lambda x: x.fitness_value, reverse=True)
-	print('Imprimindo os três melhores')
+	#The best one is plotted
+	y_axis.append(population.chromosomes[0].fitness_value)
+	print('Best chromosomes')
 	population.chromosomes[0].imprime()
 	population.chromosomes[1].imprime()
 	population.chromosomes[2].imprime()
-	print('Imprimindo os três piores')
-	population.chromosomes[47].imprime()
-	population.chromosomes[48].imprime()
-	population.chromosomes[49].imprime()
+	print('Worst chromosomes')
+	population.chromosomes[-3].imprime()
+	population.chromosomes[-2].imprime()
+	population.chromosomes[-1].imprime()
 	#Elitism
 	elite = population.elitism(ELITISM_PERCENTAGE, N_CHROMOSOMES)
 	#Crossover
 	population.crossover_2(N_ACTIONS, elite)
 	#Mutation
 	population.mutation(N_ACTIONS, MUTATION_PERCENTAGE, N_MUTATIONS)
+	print()
+
+#Plot the graph regarding the best chromosome in each generation
+plt.plot(x_axis, y_axis)
+plt.xlabel("Generations")
+plt.ylabel("Fitness value")
+plt.savefig("results_plot")
+#In case it is needed to plot the graph again
+with open('results.txt', 'w') as f:
+	f.write("[")
+	for item in x_axis:
+		f.write("%s, " % item)
+	f.write("]\n\n")
+	f.write("[")
+	for item in y_axis:
+		f.write("%s, " % item)
+	f.write("]")
