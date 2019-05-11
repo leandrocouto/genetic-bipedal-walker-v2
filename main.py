@@ -47,6 +47,28 @@ class Population:
 				selected_chromosome_2 = i
 				break
 		return selected_chromosome_1, selected_chromosome_2
+	def sample_chromosome_pairs_2(self, elite):
+		#Create a list of additive probabilities in order to facilitate
+		#the selection of the pair
+		additive_probabilities = []
+		partial_sum = 0
+		for i in range(len(elite)):
+			partial_sum += self.chromosomes[i].selection_probability
+			additive_probabilities.append(partial_sum)
+		random_number_1 = random.uniform(0.0, 1.0)
+		random_number_2 = random.uniform(0.0, 1.0)
+		selected_chromosome_1 = -1
+		selected_chromosome_2 = -1
+		#Iterate through the lists to get the chromosomes
+		for i in range(len(additive_probabilities)):
+			if random_number_1 <= additive_probabilities[i]:
+				selected_chromosome_1 = i
+				break
+		for i in range(len(additive_probabilities)):
+			if random_number_2 <= additive_probabilities[i]:
+				selected_chromosome_2 = i
+				break
+		return selected_chromosome_1, selected_chromosome_2
 	def playout(self, N_CHROMOSOMES, N_ACTIONS, env):
 		for i in range(N_CHROMOSOMES):
 			env.reset()
@@ -71,9 +93,29 @@ class Population:
 		new_population = []
 		new_population.extend(elite)
 		#Ignoring the elite, iterate until the end of the chromosomes
+		
 		for i in range(len(elite), len(self.chromosomes), 2):
 			#Selection stage - Select two chromosomes for crossover (elite CAN be selected)
-			index_1, index_2 = self.sample_chromosome_pairs()
+			#index_1, index_2 = self.sample_chromosome_pairs()
+			#Crossover
+			new_chromosome_1 = self.chromosomes[index_1].crossover_between_chromosomes(self.chromosomes[index_2], N_ACTIONS)
+			new_chromosome_2 = self.chromosomes[index_2].crossover_between_chromosomes(self.chromosomes[index_1], N_ACTIONS)
+
+			new_population.append(new_chromosome_1)
+			new_population.append(new_chromosome_2)
+		self.chromosomes = copy.deepcopy(new_population)
+	def crossover_2(self, N_ACTIONS, elite):
+		new_population = []
+		new_population.extend(elite)
+		#Ignoring the elite, iterate until the end of the chromosomes
+		random_indexes = list(range(len(elite)))
+		random.shuffle(random_indexes)
+		for i in range(0, len(elite), 2):
+			#Selection stage - Select two chromosomes for crossover (elite CAN be selected)
+			#index_1, index_2 = self.sample_chromosome_pairs_2(elite)
+			index_1 = random_indexes[i]
+			index_2 = random_indexes[i+1]
+			#print(index_1, index_2)
 			#Crossover
 			new_chromosome_1 = self.chromosomes[index_1].crossover_between_chromosomes(self.chromosomes[index_2], N_ACTIONS)
 			new_chromosome_2 = self.chromosomes[index_2].crossover_between_chromosomes(self.chromosomes[index_1], N_ACTIONS)
@@ -111,10 +153,10 @@ class Chromosome:
 
 N_GENERATIONS = 100
 N_CHROMOSOMES = 100 #Even number
-N_ACTIONS = 20 #Has to be a number multiple of 4
-MUTATION_PERCENTAGE = 0.5 #Chance of a chromosome to mutate
-N_MUTATIONS = 4 #Number of mutations inside a chromosome - Has to be a value lower than N_ACTIONS
-ELITISM_PERCENTAGE = 0.20 #Result of the multiplication of this value and N_CHROMOSOMES has to be even
+N_ACTIONS = 40 #Has to be a number multiple of 4
+MUTATION_PERCENTAGE = 0.50 #Chance of a chromosome to mutate
+N_MUTATIONS = 1 #Number of mutations inside a chromosome - Has to be a value lower than N_ACTIONS
+ELITISM_PERCENTAGE = 0.50 #Result of the multiplication of this value and N_CHROMOSOMES has to be even
 env = gym.make('BipedalWalker-v2')
 population = Population()
 env.reset()
@@ -145,12 +187,12 @@ for generation_counter in range(N_GENERATIONS):
 	population.chromosomes[1].imprime()
 	population.chromosomes[2].imprime()
 	print('Imprimindo os três piores')
-	population.chromosomes[-1].imprime()
-	population.chromosomes[-2].imprime()
-	population.chromosomes[-3].imprime()
+	population.chromosomes[47].imprime()
+	population.chromosomes[48].imprime()
+	population.chromosomes[49].imprime()
 	#Elitism
 	elite = population.elitism(ELITISM_PERCENTAGE, N_CHROMOSOMES)
 	#Crossover
-	population.crossover(N_ACTIONS, elite)
+	population.crossover_2(N_ACTIONS, elite)
 	#Mutation
 	population.mutation(N_ACTIONS, MUTATION_PERCENTAGE, N_MUTATIONS)
